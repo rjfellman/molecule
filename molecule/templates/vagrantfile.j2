@@ -27,7 +27,7 @@ Vagrant.configure('2') do |config|
         {%- endfor %}
       {%- endif %}
     {%- endif %}
-  {%- endfor %} 
+  {%- endfor %}
 
   {%- if 'raw_config_args' in config.vagrant %}
     {%- for line in config.vagrant.raw_config_args %}
