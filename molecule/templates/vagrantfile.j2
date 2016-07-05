@@ -133,6 +133,21 @@ Vagrant.configure('2') do |config|
   end
     {%- endif %}
 
+     {# --- openstack --- #}
+    {%- if provider.type is defined and provider.type == 'openstack' and provider.name == current_provider %}
+  config.vm.provider :openstack do |v|
+    {%- if provider.os %}
+      {%- for k, v in provider.os.iteritems()|sort %}
+      {%- if  v  is iterable and v is not string%}
+    v.{{ k }} = {{ v }}
+      {%- else %}
+    v.{{ k }} = "{{ v }}"
+      {%- endif %}
+      {%- endfor %}
+    {%- endif %}
+  end
+    {%- endif %}
+
   {%- endfor %}
 
   {% for instance in config.vagrant.instances -%}
