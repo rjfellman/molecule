@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -18,21 +18,20 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-from __future__ import print_function
-
 import os
 import sys
+
 import sh
 
-from utilities import logger
+from molecule import utilities
 
 
 class AnsibleGalaxyInstall:
     def __init__(self,
                  requirements_file,
                  _env=None,
-                 _out=logger.warning,
-                 _err=logger.error):
+                 _out=utilities.logger.warning,
+                 _err=utilities.logger.error):
         """
         Sets up requirements for ansible-galaxy
 
@@ -89,5 +88,5 @@ class AnsibleGalaxyInstall:
         try:
             return self.galaxy().stdout
         except sh.ErrorReturnCode as e:
-            logger.error('ERROR: {}'.format(e))
+            utilities.logger.error('ERROR: {}'.format(e))
             sys.exit(e.exit_code)

@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -18,14 +18,13 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-from __future__ import print_function
-
 import os
 import sys
+
 import colorama
 import yaml
 
-import molecule.utilities as utilities
+from molecule import utilities
 
 
 class Config(object):
@@ -83,8 +82,9 @@ class Config(object):
             sys.exit(1)
 
         with open(molecule_file, 'r') as env:
+
             try:
-                molecule_yml = yaml.safe_load(env)
+                molecule_yml = yaml.load(env)
             except Exception as e:
                 error = "\n{}{} isn't properly formatted: {}{}"
                 utilities.logger.error(error.format(

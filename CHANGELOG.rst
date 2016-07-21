@@ -1,5 +1,58 @@
 CHANGELOG for molecule
 ======================
+1.8.2
+----
+
+* Fixed a bad reference to the molecule_dir config variable.
+
+1.8.1
+----
+
+* Fixed a bug where molecule would fail if .molecule/ didn't already exist.
+
+1.8.0
+----
+
+* Added native support for OpenStack provider.
+* Fixed a bug where testinfra_dir config option wasn't being handled.
+* Fixed a bug with ``molecule login`` where its host matching didn't work with overlapping names.
+
+1.7.0
+----
+
+* It's now possible to define host_vars and group_vars in ansible section of molecule.yml.
+* The --platform CLI option now supports ``all``.
+* Corrected issue with specifying serverspec args in molecule.yml.
+
+1.6.3
+----
+
+* Updated config parsing so that testinfra.sudo and testinfra.debug can be set in molecule.yml.
+* Demo role now pulls in correct serverspec config.
+
+1.6.2
+----
+
+* Added inventory-file flag to ``molecule check`` to address Ansible 1.9.x specific issue.
+
+1.6.1
+----
+
+* Fixed a bug preventing ``molecule test`` from working.
+* Added a demo role for functional testing.
+
+1.6.0
+----
+
+* Added --offline option to ``molecule init``.
+* ``molecule status`` now shows hosts by default.
+* ``molecule test`` will now fail immediately when encountering an error.
+* Switched to Python's logging module for displaying STDOUT, STDERR.
+* Added support for libvirt provider.
+* Added ``molecule check`` to check playbook syntax.
+* Testinfra parameters can now be set as vars in molecule.yml.
+* Running testinfra tests in parallel is no longer the default behavior.
+
 1.5.1
 ----
 

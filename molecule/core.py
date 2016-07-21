@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -18,23 +18,25 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-from __future__ import print_function
-
 import fcntl
 import os
 import re
 import struct
 import sys
 import termios
-from subprocess import CalledProcessError
+import subprocess
 
-import colorama
-from tabulate import tabulate
+import tabulate
 import yaml
 
-import molecule.config as config
-import molecule.utilities as utilities
-import molecule.provisioners as provisioners
+from molecule import config
+from molecule import state
+from molecule import utilities
+from molecule.provisioners import baseprovisioner
+from molecule.provisioners import dockerprovisioner
+from molecule.provisioners import openstackprovisioner
+from molecule.provisioners import proxmoxprovisioner
+from molecule.provisioners import vagrantprovisioner
 
 
 class Molecule(object):
@@ -59,32 +61,37 @@ class Molecule(object):
         # merge in molecule.yml
         self._config.merge_molecule_file()
 
+        # ensure the .molecule directory exists
+        if not os.path.isdir(os.path.join(os.curdir, self._config.config[
+                'molecule']['molecule_dir'])):
+            os.mkdir(os.path.join(os.curdir, self._config.config['molecule'][
+                'molecule_dir']))
+
         # concatentate file names and paths within config so they're more convenient to use
         self._config.build_easy_paths()
 
         # get defaults for inventory/ansible.cfg from molecule if none are specified
         self._config.update_ansible_defaults()
 
-        self._state = self._load_state_file()
+        self._state = state.State(
+            state_file=self._config.config.get('molecule').get('state_file'))
 
         try:
-            self._provisioner = provisioners.get_provisioner(self)
-        except provisioners.InvalidProviderSpecified:
-            print("\n{}Invalid provider '{}'\n".format(
-                colorama.Fore.RED, self._args['--provider'],
-                colorama.Fore.RESET))
+            self._provisioner = self.get_provisioner()
+        except baseprovisioner.InvalidProviderSpecified:
+            utilities.logger.error("\nInvalid provider '{}'\n".format(
+                self._args['--provider']))
             self._args['--provider'] = None
             self._args['--platform'] = None
-            self._provisioner = provisioners.get_provisioner(self)
+            self._provisioner = self.get_provisioner()
             self._print_valid_providers()
             sys.exit(1)
-        except provisioners.InvalidPlatformSpecified:
-            print("\n{}Invalid platform '{}'\n".format(
-                colorama.Fore.RED, self._args['--platform'],
-                colorama.Fore.RESET))
+        except baseprovisioner.InvalidPlatformSpecified:
+            utilities.logger.error("\nInvalid platform '{}'\n".format(
+                self._args['--platform']))
             self._args['--provider'] = None
             self._args['--platform'] = None
-            self._provisioner = provisioners.get_provisioner(self)
+            self._provisioner = self.get_provisioner()
             self._print_valid_platforms()
             sys.exit(1)
 
@@ -93,30 +100,24 @@ class Molecule(object):
 
         # updates instances config with full machine names
         self._config.populate_instance_names(self._env['MOLECULE_PLATFORM'])
+
         if self._args.get('--debug'):
             utilities.debug('RUNNING CONFIG',
                             yaml.dump(self._config.config,
                                       default_flow_style=False,
                                       indent=2))
 
-        self._write_state_file()
-
-    def _load_state_file(self):
-        """
-        Looks for a molecule state file and loads it.
-
-        :return: Contents of state file as a dict if found, otherwise empty dict.
-        """
-        if not os.path.isfile(self._config.config['molecule']['state_file']):
-            return {}
-
-        with open(self._config.config['molecule']['state_file'], 'r') as env:
-            return yaml.safe_load(env)
-
-    def _write_state_file(self):
-        utilities.write_file(self._config.config['molecule']['state_file'],
-                             yaml.dump(self._state,
-                                       default_flow_style=False))
+    def get_provisioner(self):
+        if 'vagrant' in self._config.config:
+            return vagrantprovisioner.VagrantProvisioner(self)
+        elif 'proxmox' in self._config.config:
+            return proxmoxprovisioner.ProxmoxProvisioner(self)
+        elif 'docker' in self._config.config:
+            return dockerprovisioner.DockerProvisioner(self)
+        elif 'openstack' in self._config.config:
+            return openstackprovisioner.OpenstackProvisioner(self)
+        else:
+            return None
 
     def _write_ssh_config(self):
         try:
@@ -124,7 +125,7 @@ class Molecule(object):
             ssh_config = self._provisioner.ssh_config_file
             if ssh_config is None:
                 return
-        except CalledProcessError as e:
+        except subprocess.CalledProcessError as e:
             utilities.logger.error('ERROR: {}'.format(e))
             utilities.logger.error("Does your vagrant VM exist?")
             sys.exit(e.returncode)
@@ -132,8 +133,7 @@ class Molecule(object):
 
     def _print_valid_platforms(self, porcelain=False):
         if not porcelain:
-            print(colorama.Fore.CYAN + "AVAILABLE PLATFORMS" +
-                  colorama.Fore.RESET)
+            utilities.logger.info("AVAILABLE PLATFORMS")
 
         data = []
         default_platform = self._provisioner.default_platform
@@ -149,8 +149,7 @@ class Molecule(object):
 
     def _print_valid_providers(self, porcelain=False):
         if not porcelain:
-            print(colorama.Fore.CYAN + "AVAILABLE PROVIDERS" +
-                  colorama.Fore.RESET)
+            utilities.logger.info("AVAILABLE PROVIDERS")
 
         data = []
         default_provider = self._provisioner.default_provider
@@ -235,6 +234,7 @@ class Molecule(object):
 
         :return: None
         """
+
         inventory = ''
 
         for instance in self._provisioner.instances:
@@ -249,6 +249,9 @@ class Molecule(object):
                         groups[group] = []
                     groups[group].append(instance['name'])
 
+        if self._args.get('--platform') == 'all':
+            self._env['MOLECULE_PLATFORM'] = 'all'
+
         for group, instances in groups.iteritems():
             inventory += '\n[{}]\n'.format(group)
             for instance in instances:
@@ -261,10 +264,33 @@ class Molecule(object):
             utilities.write_file(inventory_file, inventory)
         except IOError:
             utilities.logger.warning(
-                '{}WARNING: could not write inventory file {}{}'.format(
-                    colorama.Fore.YELLOW, inventory_file, colorama.Fore.RESET))
+                'WARNING: could not write inventory file {}'.format(
+                    inventory_file))
 
-    def _add_or_update_group_vars(self):
+    def _add_or_update_vars(self, target):
+        """Creates or updates to host/group variables if needed."""
+
+        if target in self._config.config['ansible']:
+            vars_target = self._config.config['ansible'][target]
+        else:
+            return
+
+        molecule_dir = self._config.config['molecule']['molecule_dir']
+        target_vars_path = os.path.join(molecule_dir, target)
+
+        if not os.path.exists(os.path.abspath(target_vars_path)):
+            os.mkdir(os.path.abspath(target_vars_path))
+
+        for target in vars_target.keys():
+            target_var_content = vars_target[target][0]
+
+            utilities.write_file(
+                os.path.join(
+                    os.path.abspath(target_vars_path), target),
+                "---\n" + yaml.dump(target_var_content,
+                                    default_flow_style=False))
+
+    def _symlink_vars(self):
         """Creates or updates the symlink to group_vars if needed."""
         SYMLINK_NAME = 'group_vars'
         group_vars_target = self._config.config.get('molecule',
@@ -274,7 +300,10 @@ class Molecule(object):
 
         # Remove any previous symlink.
         if os.path.lexists(group_vars_link_path):
-            os.unlink(group_vars_link_path)
+            try:
+                os.unlink(group_vars_link_path)
+            except:
+                pass
 
         # Do not create the symlink if nothing is specified in the config.
         if not group_vars_target:
@@ -309,4 +338,8 @@ class Molecule(object):
         table_format = "fancy_grid" if headers else "plain"
 
         # Print the results.
-        print(tabulate(data, headers, tablefmt=table_format))
+        print(tabulate.tabulate(data, headers, tablefmt=table_format))
+
+    def _remove_inventory_file(self):
+        if os._exists(self._config.config['molecule']['inventory_file']):
+            os.remove(self._config.config['molecule']['inventory_file'])

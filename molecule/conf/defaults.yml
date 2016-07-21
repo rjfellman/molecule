@@ -25,7 +25,7 @@ molecule:
   config_file: ansible.cfg
 
   # where temporary state will be stored (lives under molecule_dir)
-  state_file: state
+  state_file: state.yml
 
   # name of temporary vagrantfile created during runs (lives under molecule_dir)
   vagrantfile_file: vagrantfile
@@ -54,7 +54,7 @@ molecule:
     # sequence of commands to run when performing `molecule test`
     sequence:
       - destroy
-      - check
+      - syntax
       - create
       - converge
       - idempotence
@@ -71,6 +71,7 @@ molecule:
     templates:
       molecule: molecule.yml.j2
       molecule_docker: molecule_docker.yml.j2
+      molecule_openstack: molecule_openstack.yml.j2
       playbook: playbook.yml.j2
       test_default: test_default.py.j2
 
@@ -93,3 +94,5 @@ ansible:
     - -o IdentitiesOnly=yes
     - -o ControlMaster=auto
     - -o ControlPersist=60s
+
+testinfra: {}

@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -18,16 +18,13 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-from __future__ import print_function
-
 import os
-import sys
 import re
+import sys
 
-import colorama
 import sh
 
-from utilities import logger
+from molecule import utilities
 
 
 def check_trailing_cruft(ignore_paths=[], exit=True):
@@ -73,16 +70,15 @@ def check_trailing_cruft(ignore_paths=[], exit=True):
         whitespace = trailing_whitespace(data)
 
         if newline:
-            error = '{}Trailing newline found at the end of {}{}\n'
-            logger.error(error.format(colorama.Fore.RED, filename,
-                                      colorama.Fore.RESET))
+            error = 'Trailing newline found at the end of {}\n'
+            utilities.logger.error(error.format(filename))
             found_error = True
 
         if whitespace:
-            error = '{}Trailing whitespace found in {} on lines: {}{}\n'
+            error = 'Trailing whitespace found in {} on lines: {}\n'
             lines = ', '.join(str(x) for x in whitespace)
-            logger.error(error.format(colorama.Fore.RED, filename, lines,
-                                      colorama.Fore.RESET))
+            utilities.logger.error(error.format(filename,
+                                                lines, ))
             found_error = True
 
     if exit and found_error:
@@ -121,8 +117,8 @@ def rubocop(serverspec_dir,
             debug=False,
             env=os.environ.copy(),
             pattern='/**/*.rb',
-            out=logger.warning,
-            err=logger.error):
+            out=utilities.logger.warning,
+            err=utilities.logger.error):
     """
     Runs rubocop against specified directory with specified pattern
 
@@ -146,8 +142,8 @@ def rubocop(serverspec_dir,
 def rake(rakefile,
          debug=False,
          env=os.environ.copy(),
-         out=logger.warning,
-         err=logger.error):
+         out=utilities.logger.warning,
+         err=utilities.logger.error):
     """
     Runs rake with specified rakefile
 
@@ -170,12 +166,17 @@ def rake(rakefile,
     return sh.rake(**kwargs)
 
 
-def testinfra(testinfra_dir, env=None, debug=False, **kwargs):
+def testinfra(tests,
+              debug=False,
+              env=os.environ.copy(),
+              out=utilities.logger.warning,
+              err=utilities.logger.error,
+              **kwargs):
     """
     Runs testinfra against specified ansible inventory file
 
     :param inventory: Path to ansible inventory file
-    :param testinfra_dir: Path to the testinfra tests
+    :param tests: List of testinfra tests
     :param debug: Pass debug flag to testinfra
     :param env: Environment to pass to underlying sh call
     :param out: Function to process STDOUT for underlying sh call
@@ -184,11 +185,10 @@ def testinfra(testinfra_dir, env=None, debug=False, **kwargs):
     """
     kwargs['debug'] = debug
     kwargs['_env'] = env
+    kwargs['_out'] = out
+    kwargs['_err'] = err
 
     if 'HOME' not in kwargs['_env']:
         kwargs['_env']['HOME'] = os.path.expanduser('~')
 
-    tests = '{}/test_*.py'.format(testinfra_dir)
-    tests_glob = sh.glob(tests)
-
-    return sh.testinfra(tests_glob, **kwargs)
+    return sh.testinfra(tests, **kwargs)

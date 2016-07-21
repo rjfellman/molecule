@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -18,20 +18,18 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-from __future__ import print_function
-
 import os
 import sh
 
-from utilities import logger
+from molecule import utilities
 
 
 class AnsiblePlaybook:
     def __init__(self,
                  args,
                  _env=None,
-                 _out=logger.warning,
-                 _err=logger.error):
+                 _out=utilities.logger.warning,
+                 _err=utilities.logger.error):
         """
         Sets up requirements for ansible-playbook
 
@@ -78,6 +76,7 @@ class AnsiblePlaybook:
         :param value: Value of argument to be added
         :return: None
         """
+
         # skip `requirements_file` since it used by ansible-galaxy only
         if name == 'requirements_file':
             return
@@ -101,6 +100,9 @@ class AnsiblePlaybook:
 
         if name == 'playbook':
             self.playbook = value
+            return
+
+        if name == 'host_vars' or name == 'group_vars':
             return
 
         # verbose is weird, must be -vvvv not verbose=vvvv
@@ -165,6 +167,6 @@ class AnsiblePlaybook:
             return None, self.ansible().stdout
         except (sh.ErrorReturnCode, sh.ErrorReturnCode_2) as e:
             if not hide_errors:
-                logger.error('ERROR: {}'.format(e))
+                utilities.logger.error('ERROR: {}'.format(e))
 
             return e.exit_code, None

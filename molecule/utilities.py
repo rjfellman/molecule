@@ -1,4 +1,4 @@
-#  Copyright (c) 2015 Cisco Systems
+#  Copyright (c) 2015-2016 Cisco Systems
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -21,13 +21,14 @@
 from __future__ import print_function
 
 import copy
+import logging
 import os
 import sys
-
-import logging
+import time
 
 import colorama
 import jinja2
+import paramiko
 
 
 class LogFilter(object):
@@ -38,27 +39,45 @@ class LogFilter(object):
         return logRecord.levelno <= self.__level
 
 
+class TrailingNewlineFormatter(logging.Formatter):
+    def format(self, record):
+        if record.msg:
+            record.msg = record.msg.rstrip()
+        return super(TrailingNewlineFormatter, self).format(record)
+
+
+colorama.init(autoreset=True)
+
 logger = logging.getLogger(__name__)
+
 warn = logging.StreamHandler()
 warn.setLevel(logging.WARN)
 warn.addFilter(LogFilter(logging.WARN))
-warn.setFormatter(logging.Formatter('{}{} --> {}{} %(message)s'.format(
-    colorama.Style.BRIGHT, colorama.Fore.BLUE, colorama.Fore.RESET,
-    colorama.Style.RESET_ALL)))
+warn.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
+    colorama.Fore.YELLOW)))
 
 error = logging.StreamHandler()
 error.setLevel(logging.ERROR)
-error.setFormatter(logging.Formatter('{}{} --> {}{} %(message)s'.format(
-    colorama.Style.BRIGHT, colorama.Fore.RED, colorama.Fore.RESET,
-    colorama.Style.RESET_ALL)))
+error.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
+    colorama.Fore.RED)))
 logger.addHandler(error)
 logger.addHandler(warn)
+logger.propagate = False
+
+
+def print_success(msg):
+    print('{}{}'.format(colorama.Fore.GREEN, msg.rstrip()))
+
+
+def print_info(msg):
+    print('--> {}{}'.format(colorama.Fore.CYAN, msg.rstrip()))
 
 
 def merge_dicts(a, b, raise_conflicts=False, path=None):
     """
     Merges the values of B into A.
     If the raise_conflicts flag is set to True, a LookupError will be raised if the keys are conflicting.
+
     :param a: the target dictionary
     :param b: the dictionary to import
     :param raise_conflicts: flag to raise an exception if two keys are colliding
@@ -102,6 +121,7 @@ def merge_dicts(a, b, raise_conflicts=False, path=None):
 def write_template(src, dest, kwargs={}, _module='molecule', _dir='templates'):
     """
     Writes a file from a jinja2 template.
+
     :param src: the target template files to use
     :param dest: destination of the templatized file to be written
     :param kwargs: dictionary of arguments passed to jinja2 when rendering template
@@ -115,8 +135,7 @@ def write_template(src, dest, kwargs={}, _module='molecule', _dir='templates'):
 
     # template file doesn't exist
     if path and not os.path.isfile(src):
-        logger.error('\n{}Unable to locate template file: {}{}'.format(
-            colorama.Fore.RED, src, colorama.Fore.RESET))
+        logger.error('\nUnable to locate template file: {}\n'.format(src))
         sys.exit(1)
 
     # look for template in filesystem, then molecule package
@@ -134,6 +153,7 @@ def write_template(src, dest, kwargs={}, _module='molecule', _dir='templates'):
 def write_file(filename, content):
     """
     Writes a file with the given filename using the given content. Overwrites, does not append.
+
     :param filename: the target filename
     :param content: what gets written into the file
     :return: None
@@ -145,6 +165,7 @@ def write_file(filename, content):
 def format_instance_name(name, platform, instances):
     """
     Takes an instance name and formats it according to options specified in the instance's config.
+
     :param name: the name of the instance
     :param platform: the current molecule platform in use
     :param instances: the current molecule instances dict in use
@@ -168,7 +189,8 @@ def format_instance_name(name, platform, instances):
 
     # add platform to name
     if working_instance['options'].get('append_platform_to_hostname'):
-        return name + '-' + platform
+        if (platform != 'all'):
+            return name + '-' + platform
 
     # if we fall through, return the default name
     return name
@@ -205,9 +227,28 @@ def remove_args(command_args, args, kill):
     return new_command_args, new_args
 
 
+def reset_known_host_key(hostname):
+    return os.system('ssh-keygen -R {}'.format(hostname))
+
+
+def check_ssh_availability(hostip, user, timeout):
+    import socket
+    ssh = paramiko.SSHClient()
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(hostip, username=user)
+        return True
+    except (paramiko.BadHostKeyException, paramiko.AuthenticationException,
+            paramiko.SSHException, socket.error):
+        time.sleep(timeout)
+        return False
+
+
 def debug(title, data):
     """
     Prints colorized output for use when debugging portions of molecule.
+
     :param title: title of debug output
     :param data: data of debug output
     :return: None
@@ -217,3 +258,7 @@ def debug(title, data):
                    colorama.Back.RESET, colorama.Style.RESET_ALL]))
     print(''.join([colorama.Fore.BLACK, colorama.Style.BRIGHT, data,
                    colorama.Style.RESET_ALL, colorama.Fore.RESET]))
+
+
+def sysexit(code=1):
+    sys.exit(code)
