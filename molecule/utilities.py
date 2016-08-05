@@ -203,6 +203,12 @@ def check_ssh_availability(hostip, user, timeout):
         return False
 
 
+def generate_random_keypair_name(prefix, length):
+    import random
+    r = "".join([random.choice('abcdef0123456789') for n in xrange(length)])
+    return prefix + "-" + r
+
+
 def debug(title, data):
     """
     Prints colorized output for use when debugging portions of molecule.
