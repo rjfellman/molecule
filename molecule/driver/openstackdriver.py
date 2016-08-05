@@ -36,6 +36,31 @@ class OpenstackDriver(basedriver.BaseDriver):
         self._platform = self._get_platform()
         self._openstack = shade.openstack_cloud()
 
+    def set_keypair(self):
+        keypair_name = self.get_keypair()
+        pub_key_file = self.molecule.config.config['openstack']['keyfile']
+
+        if self._openstack.search_keypairs(keypair_name):
+            LOG.info('Keypair already exists. Skipping import.')
+        else:
+            LOG.info('Adding keypair...')
+            self._openstack.create_keypair(keypair_name, open(
+                pub_key_file, 'r').read().strip())
+
+    def get_keypair(self):
+        keypair_name = self.molecule.config.config['openstack']['keypair']
+        if (keypair_name):
+            return keypair_name
+        else:
+            LOG.info('Keypair not specified. molecule will generate one.')
+            return utilities.generate_random_keypair_name('molecule', 10)
+
+    def _get_provider(self):
+        return 'openstack'
+
+    def _get_platform(self):
+        return 'openstack'
+
     @property
     def name(self):
         return 'openstack'

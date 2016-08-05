@@ -140,6 +140,12 @@ def test_debug(capsys):
     assert expected_title == result_title
 
 
+def test_generate_random_keypair_name():
+    import re
+    result_keypair = utilities.generate_random_keypair_name('molecule', 10)
+    assert re.match(r'molecule-[0-9a-fA-F]+', result_keypair)
+
+
 def test_sysexit():
     with pytest.raises(SystemExit) as e:
         util.sysexit()
