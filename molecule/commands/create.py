@@ -23,6 +23,8 @@ import subprocess
 from molecule import utilities
 from molecule.commands import base
 
+LOG = utilities.get_logger(__name__)
+
 
 class Create(base.BaseCommand):
     """
@@ -38,9 +40,6 @@ class Create(base.BaseCommand):
     """
 
     def execute(self, exit=True):
-        if self.static:
-            self.disabled('create')
-
         self.molecule._remove_inventory_file()
         self.molecule._create_templates()
         try:
@@ -50,9 +49,10 @@ class Create(base.BaseCommand):
             if self.args['--platform'] == 'all':
                 self.molecule._state.change_state('multiple_platforms', True)
         except subprocess.CalledProcessError as e:
-            utilities.logger.error('ERROR: {}'.format(e))
+            LOG.error('ERROR: {}'.format(e))
             if exit:
                 utilities.sysexit(e.returncode)
             return e.returncode, e.message
         self.molecule._create_inventory_file()
+        self.molecule._write_instances_state()
         return None, None

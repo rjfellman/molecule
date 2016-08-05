@@ -20,7 +20,6 @@
 
 from __future__ import print_function
 
-import copy
 import logging
 import os
 import sys
@@ -28,7 +27,10 @@ import time
 
 import colorama
 import jinja2
+import m9dicts
 import paramiko
+
+colorama.init(autoreset=True)
 
 
 class LogFilter(object):
@@ -46,23 +48,23 @@ class TrailingNewlineFormatter(logging.Formatter):
         return super(TrailingNewlineFormatter, self).format(record)
 
 
-colorama.init(autoreset=True)
+def get_logger(name=None):
+    """Build a logger with the given name.
 
-logger = logging.getLogger(__name__)
+    :param name: The name for the logger. This is usually the module
+                 name, ``__name__``.
+    """
 
-warn = logging.StreamHandler()
-warn.setLevel(logging.WARN)
-warn.addFilter(LogFilter(logging.WARN))
-warn.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
-    colorama.Fore.YELLOW)))
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-error = logging.StreamHandler()
-error.setLevel(logging.ERROR)
-error.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
-    colorama.Fore.RED)))
-logger.addHandler(error)
-logger.addHandler(warn)
-logger.propagate = False
+    logger.addHandler(_get_info_logger())
+    logger.addHandler(_get_warn_logger())
+    logger.addHandler(_get_error_logger())
+    logger.addHandler(_get_debug_logger())
+    logger.propagate = False
+
+    return logger
 
 
 def print_success(msg):
@@ -71,51 +73,6 @@ def print_success(msg):
 
 def print_info(msg):
     print('--> {}{}'.format(colorama.Fore.CYAN, msg.rstrip()))
-
-
-def merge_dicts(a, b, raise_conflicts=False, path=None):
-    """
-    Merges the values of B into A.
-    If the raise_conflicts flag is set to True, a LookupError will be raised if the keys are conflicting.
-
-    :param a: the target dictionary
-    :param b: the dictionary to import
-    :param raise_conflicts: flag to raise an exception if two keys are colliding
-    :param path: the dictionary path. Used to show where the keys are conflicting when an exception is raised.
-    :return: The dictionary A with the values of the dictionary B merged into it.
-    """
-    # Set path.
-    if path is None:
-        path = []
-
-    # Go through the keys of the 2 dictionaries.
-    for key in b:
-        # If the key exist in both dictionary, check whether we must update or not.
-        if key in a:
-            # Dig deeper for keys that have dictionary values.
-            if isinstance(a[key], dict) and isinstance(b[key], dict):
-                merge_dicts(a[key],
-                            b[key],
-                            raise_conflicts=raise_conflicts,
-                            path=(path + [str(key)]))
-
-            # Skip the identical values.
-            elif a[key] == b[key]:
-                pass
-            else:
-                # Otherwise raise an error if the same keys have different values.
-                if raise_conflicts:
-                    raise LookupError("Conflict at '{path}'".format(
-                        path='.'.join(path + [str(key)])))
-
-                # Or replace the value of A with the value of B.
-                a[key] = b[key]
-        else:
-            # If the key does not exist in A, import it.
-            a[key] = copy.deepcopy(b[key]) if isinstance(b[key],
-                                                         dict) else b[key]
-
-    return a
 
 
 def write_template(src, dest, kwargs={}, _module='molecule', _dir='templates'):
@@ -132,11 +89,12 @@ def write_template(src, dest, kwargs={}, _module='molecule', _dir='templates'):
     src = os.path.expanduser(src)
     path = os.path.dirname(src)
     filename = os.path.basename(src)
+    log = get_logger(__name__)
 
     # template file doesn't exist
     if path and not os.path.isfile(src):
-        logger.error('\nUnable to locate template file: {}\n'.format(src))
-        sys.exit(1)
+        log.error('Unable to locate template file: {}'.format(src))
+        sysexit()
 
     # look for template in filesystem, then molecule package
     loader = jinja2.ChoiceLoader([jinja2.FileSystemLoader(path,
@@ -262,3 +220,77 @@ def debug(title, data):
 
 def sysexit(code=1):
     sys.exit(code)
+
+
+def merge_dicts(a, b):
+    """
+    Merges the values of B into A and returns a new dict.  Uses the same merge
+    strategy as ``config._combine``.
+
+    dict a
+    ------
+    b:
+       - c: 0
+       - c: 2
+    d:
+       e: "aaa"
+       f: 3
+
+    dict b
+    ------
+    a: 1
+    b:
+       - c: 3
+    d:
+       e: "bbb"
+
+    Will give an object such as:
+
+    {'a': 1, 'b': [{'c': 0}, {'c': 2}, {'c': 3}], 'd': {'e': "bbb", 'f': 3}}
+
+    :param a: the target dictionary
+    :param b: the dictionary to import
+    :return: dict
+    """
+    md = m9dicts.make(a, merge=m9dicts.MS_DICTS_AND_LISTS)
+    md.update(b)
+
+    return md
+
+
+def _get_info_logger():
+    info = logging.StreamHandler()
+    info.setLevel(logging.INFO)
+    info.addFilter(LogFilter(logging.INFO))
+    info.setFormatter(TrailingNewlineFormatter('%(message)s'))
+
+    return info
+
+
+def _get_warn_logger():
+    warn = logging.StreamHandler()
+    warn.setLevel(logging.WARN)
+    warn.addFilter(LogFilter(logging.WARN))
+    warn.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
+        colorama.Fore.YELLOW)))
+
+    return warn
+
+
+def _get_debug_logger():
+    debug = logging.StreamHandler()
+    debug.setLevel(logging.DEBUG)
+    debug.addFilter(LogFilter(logging.DEBUG))
+    debug.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
+        colorama.Fore.BLUE)))
+
+    return debug
+
+
+def _get_error_logger():
+    error = logging.StreamHandler()
+    error.setLevel(logging.ERROR)
+    error.setFormatter(TrailingNewlineFormatter('{}%(message)s'.format(
+        colorama.Fore.RED)))
+
+    return error

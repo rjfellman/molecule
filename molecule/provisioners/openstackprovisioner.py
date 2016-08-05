@@ -25,6 +25,8 @@ import shade
 from molecule import utilities
 from molecule.provisioners import baseprovisioner
 
+LOG = utilities.get_logger(__name__)
+
 
 class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
     def __init__(self, molecule):
@@ -34,13 +36,13 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         self._openstack = shade.openstack_cloud()
 
     def set_keypair(self):
-        keypair_name = self.m._config.config['openstack']['keypair']
-        pub_key_file = self.m._config.config['openstack']['keyfile']
+        keypair_name = self.molecule.config.config['openstack']['keypair']
+        pub_key_file = self.molecule.config.config['openstack']['keyfile']
 
         if self._openstack.search_keypairs(keypair_name):
-            utilities.logger.info('Keypair already exists. Skipping import.')
+            LOG.info('Keypair already exists. Skipping import.')
         else:
-            utilities.logger.info('Adding keypair...')
+            LOG.info('Adding keypair...')
             self._openstack.create_keypair(keypair_name, open(
                 pub_key_file, 'r').read().strip())
 
@@ -48,8 +50,7 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         return 'openstack'
 
     def _get_platform(self):
-        self.m._env['MOLECULE_PLATFORM'] = 'openstack'
-        return self.m._env['MOLECULE_PLATFORM']
+        return 'openstack'
 
     @property
     def name(self):
@@ -57,7 +58,7 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
 
     @property
     def instances(self):
-        return self.m._config.config['openstack']['instances']
+        return self.molecule.config.config['openstack']['instances']
 
     @property
     def default_provider(self):
@@ -74,6 +75,10 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
     @property
     def platform(self):
         return self._platform
+
+    @platform.setter
+    def platform(self, val):
+        self._platform = val
 
     @property
     def host_template(self):
@@ -95,7 +100,7 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
     def testinfra_args(self):
         kwargs = {
             'ansible-inventory':
-            self.m._config.config['ansible']['inventory_file'],
+            self.molecule.config.config['ansible']['inventory_file'],
             'connection': 'ansible'
         }
 
@@ -117,19 +122,20 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         active_instances = self._openstack.list_servers()
         active_instance_names = {instance['name']: instance['status']
                                  for instance in active_instances}
-        utilities.logger.warning("Creating openstack instances ...")
+
+        LOG.warning("Creating openstack instances ...")
         for instance in self.instances:
             if instance['name'] not in active_instance_names:
-                utilities.logger.info("\tBringing up {}".format(instance[
-                    'name']))
+                LOG.info("\tBringing up {}".format(instance['name']))
                 server = self._openstack.create_server(
                     name=instance['name'],
                     image=self._openstack.get_image(instance['image']),
                     flavor=self._openstack.get_flavor(instance['flavor']),
                     auto_ip=True,
                     wait=True,
-                    key_name=self.m._config.config['openstack']['keypair'],
-                    security_groups=instance['security_groups'])
+                    key_name=self.molecule.config.config['openstack'][
+                        'keypair'], security_groups=instance['security_groups']
+                    if 'security_groups' in instance else None)
                 utilities.reset_known_host_key(server['interface_ip'])
                 instance['created'] = True
                 num_retries = 0
@@ -137,25 +143,23 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
                         server['interface_ip'],
                         instance['sshuser'],
                         timeout=6) or num_retries == 5:
-                    utilities.logger.info("\t Waiting for ssh availability...")
+                    LOG.info("\t Waiting for ssh availability...")
                     num_retries += 1
 
     def destroy(self):
-        utilities.logger.info("Deleting openstack instances ...")
+        LOG.info("Deleting openstack instances ...")
 
         active_instances = self._openstack.list_servers()
         active_instance_names = {instance['name']: instance['id']
                                  for instance in active_instances}
 
         for instance in self.instances:
-            utilities.logger.warning("\tRemoving {} ...".format(instance[
-                'name']))
+            LOG.warning("\tRemoving {} ...".format(instance['name']))
             if instance['name'] in active_instance_names:
                 if not self._openstack.delete_server(
                         active_instance_names[instance['name']],
                         wait=True):
-                    utilities.logger.error("Unable to remove {}!".format(
-                        instance['name']))
+                    LOG.error("Unable to remove {}!".format(instance['name']))
                 else:
                     utilities.print_success('\tRemoved {}'.format(instance[
                         'name']))
@@ -179,10 +183,10 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         return status_list
 
     def conf(self, name=None, ssh_config=False):
-        with open(self.m._config.config['molecule'][
+        with open(self.molecule.config.config['molecule'][
                 'inventory_file']) as instance:
             for line in instance:
-                if line.split()[0] == name:
+                if len(line.split()) > 0 and line.split()[0] == name:
                     ansible_host = line.split()[1]
                     host_address = ansible_host.split('=')[1]
                     return host_address

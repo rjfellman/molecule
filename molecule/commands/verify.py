@@ -28,6 +28,8 @@ from molecule import utilities
 from molecule import validators
 from molecule.commands import base
 
+LOG = utilities.get_logger(__name__)
+
 
 class Verify(base.BaseCommand):
     """
@@ -44,15 +46,12 @@ class Verify(base.BaseCommand):
     """
 
     def execute(self, exit=True):
-        if self.static:
-            self.disabled('verify')
-
-        serverspec_dir = self.molecule._config.config['molecule'][
+        serverspec_dir = self.molecule.config.config['molecule'][
             'serverspec_dir']
-        testinfra_dir = self.molecule._config.config['molecule'][
+        testinfra_dir = self.molecule.config.config['molecule'][
             'testinfra_dir']
-        rakefile = self.molecule._config.config['molecule']['rakefile_file']
-        ignore_paths = self.molecule._config.config['molecule']['ignore_paths']
+        rakefile = self.molecule.config.config['molecule']['rakefile_file']
+        ignore_paths = self.molecule.config.config['molecule']['ignore_paths']
 
         # whitespace & trailing newline check
         validators.check_trailing_cruft(ignore_paths=ignore_paths, exit=exit)
@@ -61,14 +60,14 @@ class Verify(base.BaseCommand):
 
         # testinfra's Ansible calls get same env vars as ansible-playbook
         ansible = ansible_playbook.AnsiblePlaybook(
-            self.molecule._config.config['ansible'],
+            self.molecule.config.config['ansible'],
             _env=self.molecule._env)
 
         debug = self.molecule._args.get('--debug', False)
 
         testinfra_kwargs = utilities.merge_dicts(
             self.molecule._provisioner.testinfra_args,
-            self.molecule._config.config['testinfra'])
+            self.molecule.config.config['testinfra'])
         testinfra_kwargs['env'] = ansible.env
         testinfra_kwargs['env']['PYTHONDONTWRITEBYTECODE'] = '1'
         testinfra_kwargs['debug'] = debug
@@ -86,8 +85,8 @@ class Verify(base.BaseCommand):
                 utilities.print_info(msg.format(testinfra_dir))
                 validators.testinfra(tests_glob, **testinfra_kwargs)
             else:
-                msg = 'No testinfra tests found in {}/.\n'
-                utilities.logger.warning(msg.format(testinfra_dir))
+                msg = 'No testinfra tests found in {}/.'
+                LOG.warning(msg.format(testinfra_dir))
 
             # serverspec / rubocop
             if os.path.isdir(serverspec_dir):
@@ -99,10 +98,10 @@ class Verify(base.BaseCommand):
                 utilities.print_info(msg.format(serverspec_dir))
                 validators.rake(rakefile, **serverspec_kwargs)
             else:
-                msg = 'No serverspec tests found in {}/.\n'
-                utilities.logger.warning(msg.format(serverspec_dir))
+                msg = 'No serverspec tests found in {}/.'
+                LOG.warning(msg.format(serverspec_dir))
         except sh.ErrorReturnCode as e:
-            utilities.logger.error('ERROR: {}'.format(e))
+            LOG.error('ERROR: {}'.format(e))
             if exit:
                 utilities.sysexit(e.exit_code)
             return e.exit_code, e.stdout

@@ -363,41 +363,13 @@ order to test this particular role.
 Override Configuration
 ----------------------
 
-You can specify a configuration file in the following places, in this order:
+1. project config
+2. local config (``~/.config/molecule/config.yml``)
+3. default config (``molecule.yml``)
 
-1. MOLECULE\_CONFIG environment variable
-2. ~/.config/molecule/config.yml
-3. /etc/molecule/config.yml
-
-Molecule looks for configuration file and will stop looking for files once one of these is found,
-so you *cannot* load settings from more than one of these locations.
-
-Options specified in the (first found) configuration file will merge with (and
-override) the defaults. Options not specified in the file will fall back
-to defaults.
-
-However, you can also specify settings in the `molecule.yml` file for a role under
-the *ansible* section. These will be the most specific settings and will
-override settings from all other files.
-
-Using Molecule For Deployment
------------------------------
-
-In some cases, it may be desirable to use molecule to manage existing inventory, such as a lab.
-Molecule has limited support for this concept by allowing a user to omit the ``vagrant`` block
-in molecule.yml, and then specifying a path to ansible.cfg and inventory files. Molecule will
-skip instance management in this scenario and only call ansible-playbook. Currently, only
-molecule's ``converge`` command works in this configuration.
-
-A molecule.yml such as this will trigger the described behavior:
-
-.. code-block:: yaml
-
-    ansible:
-      playbook: playbook.yml
-      config_file: /path/to/ansible.cfg
-      inventory_file: /path/to/ansible_inventory
-      extra_vars: my_var1=var1 my_var2=var2
+The merge order is default -> local -> project, meaning that elements at
+the top of the above list will be merged last, and have greater precedence
+than elements at the bottom of the list.
 
 Using Molecule In Travis
 ------------------------

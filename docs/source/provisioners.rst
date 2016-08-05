@@ -32,6 +32,10 @@ The available params for docker containers are:
 * ``privileged`` - **(OPTIONAL)** whether or not to run the container in privileged mode (boolean)
 * ``registry`` - **(OPTIONAL)** the registry to obtain the image
 * ``install_python`` - **(default=yes)** install python onto the image being used
+* ``port_bindings`` - **(OPTIONAL)** the port mapping between the Docker host and the container.
+  This is passed to docker-py as the [port_bindings host config](https://github.com/docker/docker-py/blob/master/docs/port-bindings.md).
+* ``volume_mounts`` - **(OPTIONAL)** the volume mappings between the Docker host and the container.
+* ``command`` - **(OPTIONAL)** the command to launch the container with
 
 The available param for the docker provisioner itself is:
 * ``install_python`` - **(default=yes)** install python onto all images for all containers
@@ -47,15 +51,20 @@ Docker Example
         - name: foo-01
           ansible_groups:
           - group1
-            image: ubuntu
-            image_version: latest
-            privileged: True
-          - name: foo-02
-            ansible_groups:
-              - group2
-            image: ubuntu
-            image_version: latest
-            registry: testhost:5323
+          image: ubuntu
+          image_version: latest
+          privileged: True
+          port_bindings:
+            80: 80
+        - name: foo-02
+          ansible_groups:
+            - group2
+          image: ubuntu
+          image_version: latest
+          registry: testhost:5323
+          volume_mounts:
+            - '/this/volume:/to/this:rw'
+          command: '/bin/sh'
 
 Vagrant Provisioner
 -------------------
@@ -141,5 +150,3 @@ Openstack instance example
 
 Implementing Provisioners
 -------------------------
-
-

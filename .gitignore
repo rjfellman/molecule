@@ -1,9 +1,12 @@
 *.egg-info/
 *.py[cod]
+*.retry
+.bundle/
 .cache/
+.coverage
 .eggs/
 .molecule/
 .tox/
 .vagrant/
 docs/build/
-tests/support/ansible_inventory
+tests/unit/support/ansible_inventory

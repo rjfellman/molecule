@@ -22,6 +22,8 @@ import molecule.commands  # prevent circular dependencies
 from molecule import utilities
 from molecule.commands import base
 
+LOG = utilities.get_logger(__name__)
+
 
 class Test(base.BaseCommand):
     """
@@ -39,17 +41,14 @@ class Test(base.BaseCommand):
     """
 
     def execute(self):
-        if self.static:
-            self.disabled('test')
-
         command_args, args = utilities.remove_args(
             self.command_args, self.args, self.command_args)
 
-        for task in self.molecule._config.config['molecule']['test'][
+        for task in self.molecule.config.config['molecule']['test'][
                 'sequence']:
             command_module = getattr(molecule.commands, task)
             command = getattr(command_module, task.capitalize())
-            c = command(command_args, args)
+            c = command(command_args, args, self.molecule)
 
             for argument in self.command_args:
                 if argument in c.args:
@@ -59,7 +58,7 @@ class Test(base.BaseCommand):
 
             # Fail fast
             if status is not 0 and status is not None:
-                utilities.logger.error(output)
+                LOG.error(output)
                 utilities.sysexit(status)
 
         if self.args.get('--destroy') == 'always':
