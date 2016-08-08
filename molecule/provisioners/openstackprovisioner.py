@@ -37,7 +37,7 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
 
     def set_keypair(self):
         keypair_name = self.get_keypair()
-        pub_key_file = self.molecule.config.config['openstack']['keyfile']
+        pub_key_file = self.get_keyfile()
 
         if self._openstack.search_keypairs(keypair_name):
             LOG.info('Keypair already exists. Skipping import.')
@@ -45,6 +45,14 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
             LOG.info('Adding keypair...')
             self._openstack.create_keypair(keypair_name, open(
                 pub_key_file, 'r').read().strip())
+
+    def get_keyfile(self):
+        keyfile = self.molecule.config.config['openstack']['keyfile']
+        if (keyfile):
+            return keyfile
+        else:
+            LOG.info('Keyfile not specified. molecule will generate a temporary one.')
+            return utilities.generate_temp_ssh_key('id_rsa', 2048)
 
     def get_keypair(self):
         keypair_name = self.molecule.config.config['openstack']['keypair']

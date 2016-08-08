@@ -202,6 +202,10 @@ def check_ssh_availability(hostip, user, timeout):
         time.sleep(timeout)
         return False
 
+def generate_temp_ssh_key(filename, passwd=None, bits=1024):
+    k = paramiko.RSAKey.generate(bits)
+    k.write_private_key_file(filename)
+    o = open(fil+'.pub' ,"w").write(k.get_base64())
 
 def generate_random_keypair_name(prefix, length):
     import random
