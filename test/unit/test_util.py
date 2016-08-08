@@ -150,8 +150,8 @@ def test_generate_temp_ssh_key():
     assert os.path.isfile('temp_rsa')
     assert os.path.isfile('temp_rsa.pub')
 
-    os.remove(temp_rsa)
-    os.remove(temp_rsa.pub)
+    os.remove('temp_rsa')
+    os.remove('temp_rsa.pub')
 
 def test_sysexit():
     with pytest.raises(SystemExit) as e:
