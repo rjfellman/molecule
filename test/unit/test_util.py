@@ -145,6 +145,13 @@ def test_generate_random_keypair_name():
     result_keypair = utilities.generate_random_keypair_name('molecule', 10)
     assert re.match(r'molecule-[0-9a-fA-F]+', result_keypair)
 
+def test_generate_temp_ssh_key():
+    utilities.generate_temp_ssh_key('temp_rsa', 2048)
+    assert os.path.isfile('temp_rsa')
+    assert os.path.isfile('temp_rsa.pub')
+
+    os.remove(temp_rsa)
+    os.remove(temp_rsa.pub)
 
 def test_sysexit():
     with pytest.raises(SystemExit) as e:
