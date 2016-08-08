@@ -153,6 +153,7 @@ def test_generate_temp_ssh_key():
 
     os.remove('temp_rsa')
     os.remove('temp_rsa.pub')
+    pass
 
 def test_sysexit():
     with pytest.raises(SystemExit) as e:
