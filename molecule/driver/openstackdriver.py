@@ -37,8 +37,8 @@ class OpenstackDriver(basedriver.BaseDriver):
         self._openstack = shade.openstack_cloud()
 
     def set_keypair(self):
-        keypair_name = self.get_keypair()
-        pub_key_file = self.get_keyfile()
+        keypair_name = self.get_keypair_name()
+        pub_key_file = self.get_keyfile(keypair_name)
 
         if self._openstack.search_keypairs(keypair_name):
             LOG.info('Keypair already exists. Skipping import.')
@@ -47,18 +47,17 @@ class OpenstackDriver(basedriver.BaseDriver):
             self._openstack.create_keypair(keypair_name, open(
                 pub_key_file, 'r').read().strip())
 
-    def get_keyfile(self):
-        keyfile = self.molecule.config.config['openstack']['keyfile']
-        if (keyfile):
-            return keyfile
+    def get_keyfile(self, keypair_name):
+        if ('keyfile' in self.molecule.config.config['openstack']):
+            return self.molecule.config.config['openstack']['keyfile']
         else:
-            LOG.info('Keyfile not specified. molecule will generate a temporary one.')
-            return utilities.generate_temp_ssh_key('id_rsa', 2048)
+            LOG.info(
+                'Keyfile not specified. molecule will generate a temporary one.')
+            return utilities.generate_temp_ssh_key(keypair_name, 2048)
 
-    def get_keypair(self):
-        keypair_name = self.molecule.config.config['openstack']['keypair']
-        if (keypair_name):
-            return keypair_name
+    def get_keypair_name(self):
+        if ('keypair' in self.molecule.config.config['openstack']):
+            return self.molecule.config.config['openstack']['keypair']
         else:
             LOG.info('Keypair not specified. molecule will generate one.')
             return utilities.generate_random_keypair_name('molecule', 10)
@@ -156,6 +155,8 @@ class OpenstackDriver(basedriver.BaseDriver):
                     num_retries += 1
 
     def destroy(self):
+        import code
+        code.interact(local=dict(globals(), **locals()))
         LOG.info("Deleting openstack instances ...")
 
         active_instances = self._openstack.list_servers()
