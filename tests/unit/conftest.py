@@ -81,6 +81,14 @@ def molecule_docker_config(molecule_section_data, docker_section_data,
 
 
 @pytest.fixture()
+def molecule_openstack_config(molecule_section_data, openstack_section_data,
+                              ansible_section_data):
+    return reduce(
+        lambda x, y: utilities.merge_dicts(x, y),
+        [molecule_section_data, openstack_section_data, ansible_section_data])
+
+
+@pytest.fixture()
 def molecule_section_data(state_path):
     return {
         'molecule': {
@@ -106,6 +114,23 @@ def molecule_section_data(state_path):
                     'verify'
                 ]
             }
+        }
+    }
+
+
+@pytest.fixture()
+def openstack_section_data():
+    return {
+        'openstack': {
+            'instances': [
+                {'name': 'molecule-openstack-01',
+                 'image': 'trusty64',
+                 'flavor': 'm1.tiny',
+                 'sshuser': 'ubuntu',
+                 'security_groups': [
+                     'default'
+                 ]}
+            ]
         }
     }
 
