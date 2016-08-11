@@ -19,6 +19,7 @@
 #  THE SOFTWARE.
 
 import pytest
+# from unittest.mock import Mock, MagicMock, patch
 
 from molecule import config
 from molecule import core
@@ -40,6 +41,18 @@ def openstack_instance(molecule_instance, request):
 
     return o
 
+# Mock shade response
+# def get_mock_server_config(*args, **kwargs):
+#     with open('test/server.json', 'r') as json_mock:
+#         return (json.loads(json_mock.read()))
+
+# Mock shade class
+# def get_mock_consulate(*args, **kwargs):
+#     server = Mock()
+#     server.health = Mock()
+#     server.health.service = MagicMock(side_effect=get_mock_server_config)
+#     return (server)
+
 
 def test_keypair_name(openstack_instance):
     result_keypair_name = openstack_instance.get_keypair_name()
@@ -49,14 +62,13 @@ def test_keypair_name(openstack_instance):
 
 
 def test_keyfile(openstack_instance):
-    openstack_instance.get_keyfile('molecule-abcdefg123')
+    openstack_instance.get_keyfile()
+    from os.path import expanduser
+    home = expanduser("~")
+    fileloc = home + "/.ssh/id_rsa"
     import os
-    assert os.path.isfile('/tmp/molecule-abcdefg123')
-    assert os.path.isfile('/tmp/molecule-abcdefg123.pub')
-
-    os.remove('/tmp/molecule-abcdefg123')
-    os.remove('/tmp/molecule-abcdefg123.pub')
-    pass
+    assert os.path.isfile(fileloc)
+    assert os.path.isfile(fileloc + '.pub')
 
 
 def test_name(openstack_instance):

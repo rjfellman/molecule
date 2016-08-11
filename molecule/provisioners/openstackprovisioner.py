@@ -36,23 +36,30 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         self._openstack = shade.openstack_cloud()
 
     def set_keypair(self):
-        keypair_name = self.get_keypair_name()
-        pub_key_file = self.get_keyfile(keypair_name)
+        self._keypair_name = self.get_keypair_name()
+        pub_key_file = self.get_keyfile() + ".pub"
 
-        if self._openstack.search_keypairs(keypair_name):
+        if self._openstack.search_keypairs(self.keypair_name):
             LOG.info('Keypair already exists. Skipping import.')
         else:
-            LOG.info('Adding keypair...')
-            self._openstack.create_keypair(keypair_name, open(
+            LOG.info('Adding keypair... ' + self.keypair_name)
+            self._openstack.create_keypair(self.keypair_name, open(
                 pub_key_file, 'r').read().strip())
 
-    def get_keyfile(self, keypair_name):
+    def get_keyfile(self):
+        #allow python to access the home directory
+        from os.path import expanduser
+        home = expanduser("~")
+        fileloc = home + "/.ssh/id_rsa"
+
         if ('keyfile' in self.molecule.config.config['openstack']):
             return self.molecule.config.config['openstack']['keyfile']
+        elif (os.path.isfile(fileloc)):
+            return fileloc
         else:
             LOG.info(
                 'Keyfile not specified. molecule will generate a temporary one.')
-            return utilities.generate_temp_ssh_key(keypair_name, 2048)
+            return utilities.generate_temp_ssh_key()
 
     def get_keypair_name(self):
         if ('keypair' in self.molecule.config.config['openstack']):
@@ -112,6 +119,10 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
         return None
 
     @property
+    def keypair_name(self):
+        return self._keypair_name
+
+    @property
     def testinfra_args(self):
         kwargs = {
             'ansible-inventory':
@@ -148,8 +159,8 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
                     flavor=self._openstack.get_flavor(instance['flavor']),
                     auto_ip=True,
                     wait=True,
-                    key_name=self.molecule.config.config['openstack'][
-                        'keypair'], security_groups=instance['security_groups']
+                    key_name=self.keypair_name,
+                    security_groups=instance['security_groups']
                     if 'security_groups' in instance else None)
                 utilities.reset_known_host_key(server['interface_ip'])
                 instance['created'] = True
@@ -162,8 +173,6 @@ class OpenstackProvisioner(baseprovisioner.BaseProvisioner):
                     num_retries += 1
 
     def destroy(self):
-        import code
-        code.interact(local=dict(globals(), **locals()))
         LOG.info("Deleting openstack instances ...")
 
         active_instances = self._openstack.list_servers()

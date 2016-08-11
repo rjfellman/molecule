@@ -148,13 +148,13 @@ def test_generate_random_keypair_name():
 
 
 def test_generate_temp_ssh_key():
-    utilities.generate_temp_ssh_key('temp_rsa', 2048)
-    assert os.path.isfile('/tmp/temp_rsa')
-    assert os.path.isfile('/tmp/temp_rsa.pub')
+    from os.path import expanduser
+    home = expanduser("~")
+    fileloc = home + "/.ssh/id_rsa"
 
-    os.remove('/tmp/temp_rsa')
-    os.remove('/tmp/temp_rsa.pub')
-    pass
+    utilities.generate_temp_ssh_key()
+    assert os.path.isfile(fileloc)
+    assert os.path.isfile(fileloc + '.pub')
 
 
 def test_sysexit():
