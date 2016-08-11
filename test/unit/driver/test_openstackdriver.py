@@ -93,3 +93,7 @@ def test_ansible_connection_params(openstack_instance):
 
 def test_serverspec_args(openstack_instance):
     assert {} == openstack_instance.serverspec_args
+
+
+def test_custom_test_scenario(molecule_instance):
+    assert 'idempotence' not in molecule_instance.config.test.sequence

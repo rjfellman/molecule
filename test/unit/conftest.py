@@ -127,23 +127,6 @@ def molecule_section_data(state_path):
 
 
 @pytest.fixture()
-def openstack_section_data():
-    return {
-        'openstack': {
-            'instances': [
-                {'name': 'molecule-openstack-01',
-                 'image': 'trusty64',
-                 'flavor': 'm1.tiny',
-                 'sshuser': 'ubuntu',
-                 'security_groups': [
-                     'default'
-                 ]}
-            ]
-        }
-    }
-
-
-@pytest.fixture()
 def vagrant_section_data():
     return {
         'vagrant': {
