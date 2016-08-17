@@ -3,10 +3,10 @@
 *.retry
 .bundle/
 .cache/
-.coverage
+.coverage*
 .eggs/
 .molecule/
 .tox/
 .vagrant/
-docs/build/
-tests/unit/support/ansible_inventory
+doc/build/
+test/unit/support/ansible_inventory

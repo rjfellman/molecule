@@ -42,8 +42,8 @@ Options:
 import docopt
 
 import molecule
-from molecule import commands
-from molecule import utilities
+from molecule import command
+from molecule import util
 
 
 class CLI(object):
@@ -55,13 +55,13 @@ class CLI(object):
         command_args = {} if args.get('<args>') is None else args.pop('<args>')
 
         try:
-            command_module = getattr(commands, command_name)
+            command_module = getattr(command, command_name)
             command_clazz = getattr(command_module, command_name.capitalize())
         except AttributeError:
             raise docopt.DocoptExit()
 
         c = command_clazz(command_args, args)
-        utilities.sysexit(c.execute()[0])
+        util.sysexit(c.execute()[0])
 
 
 def main():

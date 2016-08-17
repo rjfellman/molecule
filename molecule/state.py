@@ -28,10 +28,16 @@ import os
 
 import yaml
 
-from molecule import utilities
+from molecule import util
 
-VALID_KEYS = ['converged', 'created', 'customconf', 'default_platform',
-              'default_provider', 'hosts', 'multiple_platforms']
+VALID_KEYS = ['converged',
+              'created',
+              'customconf',
+              'default_platform',
+              'default_provider',
+              'hosts',
+              'installed_deps',
+              'multiple_platforms', ]
 
 
 class InvalidState(Exception):
@@ -79,6 +85,10 @@ class State(object):
     def customconf(self):
         return self._data.get('customconf')
 
+    @property
+    def installed_deps(self):
+        return self._data.get('installed_deps')
+
     @marshal
     def reset(self):
         self._data = self._default_data()
@@ -119,8 +129,8 @@ class State(object):
             return yaml.safe_load(stream)
 
     def _write_state_file(self):
-        utilities.write_file(self._state_file,
-                             yaml.safe_dump(self._data,
-                                            default_flow_style=False,
-                                            explicit_start=True,
-                                            encoding='utf-8'))
+        util.write_file(self._state_file,
+                        yaml.safe_dump(self._data,
+                                       default_flow_style=False,
+                                       explicit_start=True,
+                                       encoding='utf-8'))
